@@ -1,26 +1,35 @@
-# Agent part
-from feature import FeatureAgent
+import argparse
+import sys
 
-# Model part
-from model import CNNModel
-
-# Botzone interaction
 import numpy as np
 import torch
 
+from .model import CNNModel
+from .paths import DEFAULT_MODEL_PATH
+
+
+agent = None
+
+
 def obs2response(model, obs):
-    logits = model({'is_training': False, 'obs': {'observation': torch.from_numpy(np.expand_dims(obs['observation'], 0)), 'action_mask': torch.from_numpy(np.expand_dims(obs['action_mask'], 0))}})
+    logits = model({"is_training": False, "obs": {"observation": torch.from_numpy(np.expand_dims(obs["observation"], 0)), "action_mask": torch.from_numpy(np.expand_dims(obs["action_mask"], 0))}})
     action = logits.detach().numpy().flatten().argmax()
     response = agent.action2response(action)
     return response
 
-import sys
 
-if __name__ == '__main__':
+def run_botzone(model_path=DEFAULT_MODEL_PATH):
+    global agent
+
+    from .feature import FeatureAgent
+
     model = CNNModel()
-    data_dir = 'data/8.pkl'
-    model.load_state_dict(torch.load(data_dir, map_location = torch.device('cpu')))
-    input() # 1
+    model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
+    model.eval()
+
+    angang = None
+    zimo = False
+    input()
     while True:
         request = input()
         while not request.strip(): request = input()
@@ -96,3 +105,18 @@ if __name__ == '__main__':
                         agent.request2obs('Player %d Un' % seatWind + response)
         print('>>>BOTZONE_REQUEST_KEEP_RUNNING<<<')
         sys.stdout.flush()
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(description="Run the Mahjong bot using the Botzone text protocol.")
+    parser.add_argument("--model", default=str(DEFAULT_MODEL_PATH), help="Path to a PyTorch state_dict checkpoint.")
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    run_botzone(args.model)
+
+
+if __name__ == "__main__":
+    main()
